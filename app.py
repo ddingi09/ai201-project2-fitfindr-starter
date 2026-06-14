@@ -289,59 +289,59 @@ Describe what you're looking for — include size and price if you want to filte
             label="Try these queries",
         )
 
-        # Event handlers
+        # Event handlers - return tuples in the order of outputs
         def search_click(query, wardrobe_choice, state):
             listing, outfit, caption, status, show_outfit, show_search = handle_search(
                 query, wardrobe_choice, state
             )
-            return {
-                listing_output: listing,
-                outfit_output: outfit,
-                fitcard_output: caption,
-                status_msg: status,
-                outfit_btn: gr.update(visible=show_outfit),
-                search_again_btn: gr.update(visible=show_search),
-                state: state,
-            }
+            return (
+                listing,  # listing_output
+                outfit,  # outfit_output
+                caption,  # fitcard_output
+                status,  # status_msg
+                gr.update(visible=show_outfit),  # outfit_btn
+                gr.update(visible=show_search),  # search_again_btn
+                state,  # state
+            )
 
         def outfit_click(state):
             listing, outfit, caption, status, _, show_caption, show_search = handle_get_outfit(state)
-            return {
-                listing_output: listing,
-                outfit_output: outfit,
-                fitcard_output: caption,
-                status_msg: status,
-                outfit_btn: gr.update(visible=False),
-                caption_btn: gr.update(visible=show_caption),
-                search_again_btn: gr.update(visible=show_search),
-                state: state,
-            }
+            return (
+                listing,  # listing_output
+                outfit,  # outfit_output
+                caption,  # fitcard_output
+                status,  # status_msg
+                gr.update(visible=False),  # outfit_btn
+                gr.update(visible=show_caption),  # caption_btn
+                gr.update(visible=show_search),  # search_again_btn
+                state,  # state
+            )
 
         def caption_click(state):
             listing, outfit, caption, status, _, _, show_search = handle_get_caption(state)
-            return {
-                listing_output: listing,
-                outfit_output: outfit,
-                fitcard_output: caption,
-                status_msg: status,
-                caption_btn: gr.update(visible=False),
-                search_again_btn: gr.update(visible=show_search),
-                state: state,
-            }
+            return (
+                listing,  # listing_output
+                outfit,  # outfit_output
+                caption,  # fitcard_output
+                status,  # status_msg
+                gr.update(visible=False),  # caption_btn
+                gr.update(visible=show_search),  # search_again_btn
+                state,  # state
+            )
 
         def search_again_click(state):
             _, _, _, status, _, _, _ = handle_continue_shopping(state)
-            return {
-                listing_output: gr.update(value=""),
-                outfit_output: gr.update(value=""),
-                fitcard_output: gr.update(value=""),
-                status_msg: status,
-                outfit_btn: gr.update(visible=False),
-                caption_btn: gr.update(visible=False),
-                search_again_btn: gr.update(visible=False),
-                query_input: gr.update(value=""),
-                state: state,
-            }
+            return (
+                "",  # listing_output
+                "",  # outfit_output
+                "",  # fitcard_output
+                status,  # status_msg
+                gr.update(visible=False),  # outfit_btn
+                gr.update(visible=False),  # caption_btn
+                gr.update(visible=False),  # search_again_btn
+                "",  # query_input
+                state,  # state
+            )
 
         # Connect button clicks to handlers
         search_btn.click(
