@@ -85,7 +85,7 @@ First asks the user for what they want to shop for including the item, size, and
 
 **How does information from one tool get passed to the next?**
 <!-- Describe how your agent stores and accesses state within a session. What data is tracked? How is it passed between tool calls? -->
-The dictionary of matching items that is returned from search_listings() is stored in a dictionary variable. The String output of suggest_outfit() is also saved in a String variable. Each of these variables are stored and can be passed as parameters into subsequent function calls.
+InteractionState class is used to keep track of the current session. search_listings() stores search_results and sets the top result to be selected_item. selected_item is passed to suggest_outfit() along with the user's wardrobe, the output is stored in outfit_suggestion. Finally, create_fit_card() is called with the selected_item and outfit_suggestion, the output is stored in fit_card. Each of the stored variables and placed into the session dict and passed to the UI.
 
 ---
 
@@ -168,7 +168,7 @@ I'll give Claude my Tool 2 spec (Tool 2: suggest_outfit) and ask it to implement
 using load_wardrove_schema() from data_loader.py. I will then test this with 2 queries, one using
 get_example_wardrobe() and get_empty_wardrobe() to error test.
 
-I'll give Claude my Tool 3 spec (Tool 3: create_fit_card) and is it to implement create_fit_card().
+I'll give Claude my Tool 3 spec (Tool 3: create_fit_card) and ask it to implement create_fit_card().
 I will test this will  queries, one including both parameters, one only including the new_item parameter,
 and one more different query to check if it generates original captions.
 
