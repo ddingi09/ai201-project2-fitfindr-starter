@@ -69,8 +69,86 @@ def search_listings(
 
     Before writing code, fill in the Tool 1 section of planning.md.
     """
-    # Replace this with your implementation
-    return []
+    # Validate input: require at least one search criterion
+    if not ((isinstance(description, str) and description.strip()) or size or max_price is not None):
+        raise ValueError(
+            "Please provide at least one search criterion: description, size, or max_price."
+        )
+
+    # Load listings
+    listings = load_listings()
+    if not listings:
+        raise ValueError("Listings dataset is empty or could not be loaded.")
+
+    # Prepare keywords from the description (may be empty)
+    keywords = []
+    if isinstance(description, str) and description.strip():
+        keywords = [w.strip() for w in description.lower().split() if w.strip()]
+
+    results = []
+    for item in listings:
+        # Price filter
+        price = item.get("price")
+        if max_price is not None:
+            try:
+                if price is None or float(price) > float(max_price):
+                    continue
+            except Exception:
+                # Skip items with non-numeric price values
+                continue
+
+        # Size filter (case-insensitive substring match)
+        if size:
+            item_size = str(item.get("size", "")).lower()
+            if size.lower() not in item_size:
+                continue
+
+        # Build a searchable text blob from relevant fields
+        parts = []
+        for key in ("title", "description", "category", "brand", "condition", "platform"):
+            v = item.get(key)
+            if v:
+                parts.append(str(v))
+        # include list fields
+        for key in ("style_tags", "colors"):
+            vals = item.get(key, [])
+            if isinstance(vals, list):
+                parts.extend([str(v) for v in vals if v])
+            elif vals:
+                parts.append(str(vals))
+
+        text = " ".join(parts).lower()
+
+        # Score by keyword overlap (simple count of matched keywords).
+        # If no keywords were provided, include the filtered item.
+        if keywords:
+            score = 0
+            for kw in keywords:
+                if kw in text:
+                    score += 1
+            if score > 0:
+                copy_item = dict(item)
+                copy_item["_score"] = score
+                results.append(copy_item)
+        else:
+            copy_item = dict(item)
+            copy_item["_score"] = 1
+            results.append(copy_item)
+
+    # No matches -> raise an informative error
+    if not results:
+        raise ValueError(
+            "No matching listings found. Try again with a different description or relax the size/price filters."
+        )
+
+    # Sort by score (desc) then price (asc)
+    results.sort(key=lambda x: (-x.get("_score", 0), x.get("price", float("inf"))))
+
+    # Remove internal score before returning
+    for r in results:
+        r.pop("_score", None)
+
+    return results
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
