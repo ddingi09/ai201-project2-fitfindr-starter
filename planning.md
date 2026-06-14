@@ -42,10 +42,10 @@ Takes the top result returned by the search_listings tool and the user's wardrob
 - `wardrobe` (dict): User's warbrobe.
 
 **What it returns:**
-A String suggesting how to user style the new item with items currently in their wardrobe.
+A String suggesting how the user should style the new item with items currently in their wardrobe.
 
 **What happens if it fails or returns nothing:**
-If the user does not have anything in their wardrobe that can be styled with the new item, then return message saying that there currently are no matching items but still give general styling suggestions!
+If the user does not have anything in their wardrobe that can be styled with the new item, then return message saying that there currently are no matching items but still give general styling suggestions.
 
 ---
 

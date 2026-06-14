@@ -16,6 +16,6 @@ def test_search_price_filter():
     assert all(item["price"] <= 10 for item in results)
     
 
-#test_search_empty_results()
-#test_search_price_filter()
+test_search_empty_results()
+test_search_price_filter()
 test_search_returns_results()

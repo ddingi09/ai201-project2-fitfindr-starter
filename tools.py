@@ -178,8 +178,140 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
 
     Before writing code, fill in the Tool 2 section of planning.md.
     """
-    # Replace this with your implementation
-    return ""
+    # Basic defensive handling
+    if not isinstance(new_item, dict) or not new_item:
+        return "Sorry, I don't have enough information about the new item to suggest an outfit."
+
+    items = []
+    if isinstance(wardrobe, dict):
+        items = wardrobe.get("items") or []
+    if not isinstance(items, list):
+        items = []
+
+    # Normalize some fields from the new item
+    new_cat = (new_item.get("category") or "").lower()
+    new_colors = [str(c).lower() for c in new_item.get("colors", []) if c]
+    new_styles = [str(s).lower() for s in new_item.get("style_tags", []) if s]
+    title = new_item.get("title") or new_item.get("name") or "this item"
+
+    # If wardrobe is empty, return general styling advice
+    if not items:
+        advice = f"You're looking at '{title}'. "
+        if new_cat:
+            advice += f"This {new_cat} would pair well with basic wardrobe staples. "
+        if new_colors:
+            advice += f"Try matching or contrasting with {', '.join(new_colors[:2])} pieces. "
+        advice += (
+            "General ideas: balance proportions (e.g., fitted top with wide bottoms), "
+            "add layered outerwear for texture, and finish with shoes that match the vibe."
+        )
+        return advice
+
+    # Helper: score compatibility between new_item and a wardrobe piece
+    def score_piece(piece: dict) -> int:
+        score = 0
+        # color match
+        piece_colors = [str(c).lower() for c in piece.get("colors", []) if c]
+        if any(pc in new_colors for pc in piece_colors) and new_colors:
+            score += 3
+        # style tag overlap
+        piece_styles = [str(s).lower() for s in piece.get("style_tags", []) if s]
+        for s in piece_styles:
+            if s in new_styles:
+                score += 1
+        # complementary category bonus
+        cat = (piece.get("category") or "").lower()
+        complementary = {
+            "tops": ["bottoms", "outerwear", "shoes", "accessories"],
+            "bottoms": ["tops", "shoes", "outerwear", "accessories"],
+            "outerwear": ["tops", "bottoms", "shoes", "accessories"],
+            "shoes": ["bottoms", "tops", "accessories"],
+            "accessories": ["tops", "bottoms", "outerwear", "shoes"],
+        }
+        if new_cat and cat in complementary.get(new_cat, []):
+            score += 2
+        return score
+
+    # Score every wardrobe item
+    scored = []
+    for p in items:
+        scored.append((score_piece(p), p))
+
+    # Group by category and sort desc by score
+    from collections import defaultdict
+
+    by_cat = defaultdict(list)
+    for s, p in scored:
+        by_cat[(p.get("category") or "").lower()].append((s, p))
+    for cat in list(by_cat.keys()):
+        by_cat[cat].sort(key=lambda x: -x[0])
+
+    # Build up to two outfit suggestions
+    outfits = []
+
+    def pick_best(cat_list, exclude_ids=None):
+        exclude_ids = exclude_ids or set()
+        for s, p in cat_list:
+            if p.get("id") not in exclude_ids:
+                return p
+        return None
+
+    def make_outfit(exclude_ids=None):
+        exclude_ids = set(exclude_ids or [])
+        outfit_parts = []
+        # Choose complementary pieces based on new_item category
+        want = []
+        if new_cat == "tops":
+            want = ["bottoms", "outerwear", "shoes", "accessories"]
+        elif new_cat == "bottoms":
+            want = ["tops", "outerwear", "shoes", "accessories"]
+        elif new_cat == "outerwear":
+            want = ["tops", "bottoms", "shoes", "accessories"]
+        elif new_cat == "shoes":
+            want = ["bottoms", "tops", "accessories"]
+        else:
+            want = ["tops", "bottoms", "outerwear", "shoes", "accessories"]
+
+        used_ids = set(exclude_ids)
+        for cat in want:
+            candidates = by_cat.get(cat, [])
+            pick = pick_best(candidates, used_ids)
+            if pick:
+                outfit_parts.append(pick.get("name") or pick.get("title") or cat)
+                used_ids.add(pick.get("id"))
+
+        return outfit_parts
+
+    first = make_outfit()
+    if first:
+        outfits.append(first)
+        # Try to make a second outfit using different pieces
+        used_ids = {p.get("id") for part_cat in first for p in items if (p.get("name") == part_cat or p.get("title") == part_cat)}
+        second = make_outfit(exclude_ids=used_ids)
+        if second and second != first:
+            outfits.append(second)
+
+    # Format the response
+    lines = []
+    heading = f"Styling suggestions for '{title}':"
+    lines.append(heading)
+    if not outfits:
+        lines.append(
+            "I couldn't find specific matching pieces in your wardrobe, but here are general styling ideas:"
+        )
+        if new_colors:
+            lines.append(f"• Try pairing {', '.join(new_colors[:2])} with neutral basics like white, black, or denim.")
+        lines.append("• Think about proportion: pair oversized pieces with fitted items; cropped with high-waisted bottoms.")
+        lines.append("• Finish with shoes that match the vibe (sneakers for casual, boots for edge).")
+        return "\n".join(lines)
+
+    for i, parts in enumerate(outfits, start=1):
+        if parts:
+            lines.append(f"Outfit {i}: {title} + " + ", ".join(parts))
+
+    # If wardrobes contain notes or helpful details, add a friendly tip
+    lines.append("Tip: Try swapping shoes or adding a belt/accessory to change the vibe.")
+    return "\n".join(lines)
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -211,5 +343,162 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
 
     Before writing code, fill in the Tool 3 section of planning.md.
     """
-    # Replace this with your implementation
-    return ""
+    # Guard clauses
+    if not isinstance(new_item, dict) or not new_item:
+        return "Cannot generate caption: missing `new_item`."
+
+    title = new_item.get("title") or new_item.get("name") or "This piece"
+    price = new_item.get("price")
+    platform = new_item.get("platform")
+
+    # Format price
+    price_str = ""
+    try:
+        if price is not None:
+            price_str = f"${float(price):.2f}"
+    except Exception:
+        price_str = str(price)
+
+    # Derive a short summary from the outfit input
+    outfit_text = (outfit or "").strip()
+    import re
+
+    parts_summary = None
+    if outfit_text:
+        m = re.search(r"Outfit 1:\s*(.*)", outfit_text, flags=re.IGNORECASE)
+        if m:
+            line = m.group(1)
+        else:
+            lines = [l.strip() for l in outfit_text.splitlines() if l.strip()]
+            line = lines[1] if len(lines) > 1 else (lines[0] if lines else "")
+
+        try:
+            line_clean = re.sub(re.escape(title), "", line, flags=re.IGNORECASE)
+        except Exception:
+            line_clean = line
+        line_clean = line_clean.replace("+", ",").strip(" -–—:,\n")
+        line_clean = re.sub(r"\s{2,}", " ", line_clean).strip()
+        if line_clean:
+            parts_summary = line_clean
+
+    # Prefer using the LLM when an API key is available; otherwise fall back
+    load_dotenv()
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        try:
+            client = _get_groq_client()
+            prompt_lines = [
+                "You are a social media influencer.",
+                "Write a short (2-4 sentence) casual OOTD caption for a thrift find.",
+                "CRITICAL RULES:",
+                "- ONLY mention details that are explicitly provided below.",
+                "- DO NOT make up, invent, or assume any information.",
+                "- If a detail is not provided (like platform or price), do NOT include it in the caption.",
+                "- Sound authentic and capture the outfit vibe, but use ONLY the provided facts.",
+                "- Keep it natural — not a product description. Avoid hashtags.",
+                "- Respond only with the caption text. Do not repeat words.",
+                "\nProvided Item Details (use ONLY what is listed):\n",
+            ]
+            prompt_lines.append(f"Name/title: {title}")
+            if price_str:
+                prompt_lines.append(f"Price: {price_str}")
+            else:
+                prompt_lines.append("Price: NOT PROVIDED - do not mention cost")
+            if platform:
+                prompt_lines.append(f"Platform: {platform}")
+            else:
+                prompt_lines.append("Platform: NOT PROVIDED - do not mention where it was bought")
+            if parts_summary:
+                prompt_lines.append(f"Outfit summary: {parts_summary}")
+            else:
+                prompt_lines.append("Outfit summary: NOT PROVIDED")
+            styles = new_item.get("style_tags") or []
+            if styles:
+                prompt_lines.append(f"Style tags: {', '.join([str(s) for s in styles])}")
+            else:
+                prompt_lines.append("Style tags: NOT PROVIDED")
+
+            prompt = "\n".join(prompt_lines)
+
+            # Call Groq API using chat.completions.create
+            resp = None
+            try:
+                resp = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.9
+                )
+                if resp and hasattr(resp, "choices") and len(resp.choices) > 0:
+                    message = resp.choices[0].message
+                    if hasattr(message, "content"):
+                        return message.content.strip()
+            except Exception:
+                # If LLM call fails, fall back to local generator below
+                pass
+        except Exception:
+            # If any LLM call fails, we'll fall back to local generator below
+            pass
+
+    # Local deterministic-but-varied caption generator (stable per input)
+    import random
+    import hashlib
+
+    seed_input = f"{title}|{price_str}|{platform}|{parts_summary or outfit_text}"
+    seed = int(hashlib.sha256(seed_input.encode("utf-8")).hexdigest(), 16) % (2 ** 32)
+    rnd = random.Random(seed)
+
+    openers = [
+        "Just snagged", "Found", "Thrifted", "Score:", "Latest OOTD:", "Can’t stop wearing"
+    ]
+    middles = [
+        "and I’m pairing it with", "styled with", "worn here with", "layered over", "team it with"
+    ]
+    vibes = [
+        "easy everyday cool", "vintage casual", "clean minimal", "streetwear edge", "polished thrift", "90s throwback"
+    ]
+
+    opener = rnd.choice(openers)
+    middle = rnd.choice(middles)
+    vibe = (", ".join([str(s) for s in (new_item.get("style_tags") or [])[:2]]) ) or rnd.choice(vibes)
+
+    # Sentence 1: name + price + platform (natural)
+    s1_parts = [opener, title]
+    if price_str:
+        # vary placement
+        if rnd.random() < 0.5:
+            s1 = f"{opener} {title} for {price_str}"
+        else:
+            s1 = f"{opener} {title} — {price_str}"
+    else:
+        s1 = f"{opener} {title}"
+    if platform:
+        if rnd.random() < 0.5:
+            s1 += f" on {platform}"
+        else:
+            s1 = f"{s1} (picked up on {platform})"
+    s1 = s1.rstrip(" .,") + "."
+
+    # Sentence 2: outfit summary
+    if parts_summary:
+        s2_templates = [
+            f"{middle} {parts_summary} for an easy, put-together look.",
+            f"Wearing it with {parts_summary} — comfy but pulled together.",
+            f"Pairing it with {parts_summary} to keep things {vibe}.",
+        ]
+        s2 = rnd.choice(s2_templates)
+    else:
+        s2 = rnd.choice([
+            "Pair it with a white tee and denim for instant wearability.",
+            "I’d style this with neutral basics and chunky sneakers.",
+            "Works great with layered outerwear and simple sneakers for everyday wear.",
+        ])
+
+    # Sentence 3: vibe / CTA
+    s3 = rnd.choice([
+        f"Perfect for a {vibe} vibe.",
+        f"Totally {vibe} — loving how versatile this is.",
+        "Simple, trendy, and cool.",
+    ])
+
+    caption = " ".join([s1, s2, s3]).strip()
+    return caption
